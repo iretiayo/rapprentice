@@ -62,12 +62,19 @@ try:
         raise Exception("problem starting video recording")
     else: started_bag = True
     
+    '''
     video_cmd = "record_rgbd_video --out=%s --downsample=%i"%(demo_name, args.downsample)
     print colorize(video_cmd, "green")
     video_handle = subprocess.Popen(video_cmd, shell=True)
     started_video = True
-
-    
+    '''
+    set_params_cmd = "rosrun image_view extract_images_sync _inputs:='[/kinect2/hd/image_color, /kinect2/hd/image_depth_rect]'"
+    print colorize(set_params_cmd, "red")
+    set_params_handle = subprocess.Popen(set_params_cmd, shell=True)
+    time.sleep(1)
+    extract_image_cmd = "python scripts/extract_images_sync2.py " + demo_name
+    print colorize(extract_image_cmd, "blue")
+    extract_image_handle = subprocess.Popen(extract_image_cmd, shell= True)
     time.sleep(9999)    
 
 except KeyboardInterrupt:
@@ -88,7 +95,7 @@ finally:
 bagfilename = demo_name+".bag"
 if yes_or_no("save demo?"):
     annfilename = demo_name+".ann.yaml"
-    call_and_print("generate_annotations.py %s %s"%(bagfilename, annfilename),check=False)
+    call_and_print("scripts/generate_annotations.py %s %s"%(bagfilename, annfilename),check=False)
     with open(args.master_file,"a") as fh:
         fh.write("\n"
             "- bag_file: %(bagfilename)s\n"

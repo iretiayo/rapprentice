@@ -1,0 +1,9 @@
+
+name: master
+h5path: master.h5
+bags:
+        
+- bag_file: demo_files0.bag
+  annotation_file: demo_files0.ann.yaml
+  video_dir: demo_files0
+  demo_name: demo_files0

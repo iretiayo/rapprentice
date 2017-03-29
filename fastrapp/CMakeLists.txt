@@ -23,10 +23,10 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(BUILD_SHARED_LIBS true)
 
 
-option(OPT_ROS "build stuff involving ros, e.g. record_demo program" OFF)
+option(OPT_ROS "build stuff involving ros, e.g. record_demo program" ON)
 
 if (OPT_ROS)
-  set(ROS_VERSION "groovy" CACHE STRING "what version of ros")
+  set(ROS_VERSION "indigo" CACHE STRING "what version of ros")
 
   set(ROS_INCLUDE_DIRS "/opt/ros/${ROS_VERSION}/include")
   set(ROS_LIB_DIR "/opt/ros/${ROS_VERSION}/lib")
