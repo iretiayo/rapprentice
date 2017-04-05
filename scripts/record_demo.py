@@ -68,6 +68,11 @@ try:
     video_handle = subprocess.Popen(video_cmd, shell=True)
     started_video = True
     '''
+    '''
+    Removed call to recrod_rgbd_video.cpp.
+    Instead subscribe to colored image + depth topics through set_params_cmd (rosrun...)
+    Then run extract_images_sync2.py
+    '''
     set_params_cmd = "rosrun image_view extract_images_sync _inputs:='[/kinect2/hd/image_color, /kinect2/hd/image_depth_rect]'"
     print colorize(set_params_cmd, "red")
     set_params_handle = subprocess.Popen(set_params_cmd, shell=True)
@@ -75,6 +80,7 @@ try:
     extract_image_cmd = "python scripts/extract_images_sync2.py " + demo_name
     print colorize(extract_image_cmd, "blue")
     extract_image_handle = subprocess.Popen(extract_image_cmd, shell= True)
+    started_video = True
     time.sleep(9999)    
 
 except KeyboardInterrupt:
@@ -88,8 +94,9 @@ finally:
         bag_handle.wait()
     if started_video:
         print "stopping video"
-        video_handle.send_signal(signal.SIGINT)
-        video_handle.wait()
+        extracted_image_handle.send_signal(signal.SIGINT)
+        extracted_image_handle.wait()
+        set_params_handle.send_signal(signal.SIGINT)
 
 
 bagfilename = demo_name+".bag"

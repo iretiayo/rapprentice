@@ -54,9 +54,11 @@ class ExtractImagesSync(object):
         self.seq = 0
         self.timestamps =[]
 
-        self.f = open(self.outdir+'/timestamps.txt','w')
+        self.f = open(self.outdir+'/stamps.txt','w')
+        # self.fname_fmt = rospy.get_param(
+        #     '~filename_format', 'frame%04i_%i.jpg')
         self.fname_fmt = rospy.get_param(
-            '~filename_format', 'frame%04i_%i.jpg')
+            '~filename_format', '%s%.2i%s')
         self.do_dynamic_scaling = rospy.get_param(
             '~do_dynamic_scaling', False)
         img_topics = rospy.get_param('~inputs', None)
@@ -97,7 +99,11 @@ _inputs:='[<image_topic>, <image_topic>]'""")
             img = cv_bridge.cvtColorForDisplay(
                 img, encoding_in=encoding_in, encoding_out='',
                 do_dynamic_scaling=self.do_dynamic_scaling)
-            fname = self.fname_fmt % (seq, i)
+
+            #assume image is color (i = 0), set fname as rgb#.jpg
+            fname = self.fname_fmt % ('rgb', seq, '.jpg')
+            if(i== 1):
+                fname = self.fname_fmt % ('depth', seq, '.png')
             print('Save image as {0}'.format(fname))
             cv2.imwrite(self.outdir + "/" + fname, img)
         timestamp = imgmsgs[0].header.stamp.to_sec()
