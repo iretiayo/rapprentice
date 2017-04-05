@@ -29,9 +29,14 @@ T_h_k = np.array([[-0.02102462, -0.03347223,  0.99921848, -0.186996  ],
 
 f = 544.260779961
 
+
+import tf
+listener = tf.TransformListener()
+translation, rotation = listener.lookupTransform("/head_mount_kinect2_link", "/head_plate_frame", rospy.Time.now())
+T_h_k = listener.fromTranslationRotation(translation, rotation)
+
 def get_kinect_transform(robot):    
     T_w_h = robot.GetLink("head_plate_frame").GetTransform()    
     T_w_k = T_w_h.dot(T_h_k)
     return T_w_k
 
-       
