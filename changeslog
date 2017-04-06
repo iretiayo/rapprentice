@@ -1,0 +1,10 @@
+Instead of calling record_rgbd_video.cpp, we are using extract_images_sync2.py (have timestamps)
+Subscribe to color and depth images using rosrun command, so that we could above function.
+
+4/2 
+record_demo.py: Re-added started video = True (had accidentally commented it out). Now stops the subproccesses after demo is recorded.
+
+extract_images_sync2.py: changed timestamps.txt to just stamps.txt (line 57).
+Changed the format of filenames for colored & depth images. Now is depth[COUNT].png and rgb[COUNT].jpg... same naming convention that was originally used in record_rgbd_video.cpp.
+
+/rapprentice/cloud_proc_funcs.py: Changed extract_red to extract_yellow.

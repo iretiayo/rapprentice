@@ -4,9 +4,9 @@ import cv2, numpy as np
 import skimage.morphology as skim
 DEBUG_PLOTS=False
 
-def extract_red(rgb, depth, T_w_k):
+def extract_yellow(rgb, depth, T_w_k):
     """
-    extract red points and downsample
+    extract yellow points and downsample
     """
         
     hsv = cv2.cvtColor(rgb, cv2.COLOR_BGR2HSV)
@@ -14,7 +14,8 @@ def extract_red(rgb, depth, T_w_k):
     s = hsv[:,:,1]
     v = hsv[:,:,2]
     
-    h_mask = (h<15) | (h>145)
+    #Hue ranges from 16-83 (out of 360)
+    h_mask = (h<83) | (h>16) 
     s_mask = (s > 30 )
     v_mask = (v > 100)
     red_mask = h_mask & s_mask & v_mask
