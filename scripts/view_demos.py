@@ -24,6 +24,7 @@ for i in xrange(0,len(all_imgnames),chunksize):
     imgnames = all_imgnames[i:i+chunksize]
     imgs = []
     for (img, name) in imgnames:
+    	print name
         cv2.putText(img, name,(30,30), cv2.FONT_HERSHEY_PLAIN, 3, (255, 0, 255), thickness = 3) 
 
         imgs.append(img)

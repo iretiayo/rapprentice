@@ -58,7 +58,7 @@ class ExtractImagesSync(object):
         # self.fname_fmt = rospy.get_param(
         #     '~filename_format', 'frame%04i_%i.jpg')
         self.fname_fmt = rospy.get_param(
-            '~filename_format', '%s%.2i%s')
+            '~filename_format', '%s%i%s')
         self.do_dynamic_scaling = rospy.get_param(
             '~do_dynamic_scaling', False)
         img_topics = rospy.get_param('~inputs', None)
@@ -105,6 +105,7 @@ _inputs:='[<image_topic>, <image_topic>]'""")
             if(i== 1):
                 fname = self.fname_fmt % ('depth', seq, '.png')
             print('Save image as {0}'.format(fname))
+            img = cv2.resize(img, (640,480))
             cv2.imwrite(self.outdir + "/" + fname, img)
         timestamp = imgmsgs[0].header.stamp.to_sec()
         self.timestamps.append(timestamp)

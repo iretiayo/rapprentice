@@ -94,9 +94,10 @@ finally:
         bag_handle.wait()
     if started_video:
         print "stopping video"
-        extracted_image_handle.send_signal(signal.SIGINT)
-        extracted_image_handle.wait()
+        extract_image_handle.send_signal(signal.SIGINT)
+        extract_image_handle.wait()
         set_params_handle.send_signal(signal.SIGINT)
+        set_params_handle.wait()
 
 
 bagfilename = demo_name+".bag"

@@ -4,6 +4,7 @@ import argparse
 usage="""
 
 Run in simulation with a translation and a rotation of fake data:
+Rona: for us, --fake_data_seg=demo_files0_seg00
 ./do_task.py ~/Data/sampledata/overhand/overhand.h5 --fake_data_segment=overhand0_seg00 --execution=0  --animation=1 --select_manual --fake_data_transform .1 .1 .1 .1 .1 .1
 
 Run in simulation choosing the closest demo, single threaded
@@ -15,7 +16,7 @@ Actually run on the robot without pausing or animating
 """
 parser = argparse.ArgumentParser(usage=usage)
 parser.add_argument("h5file", type=str)
-parser.add_argument("--cloud_proc_func", default="extract_red")
+parser.add_argument("--cloud_proc_func", default="extract_yellow")
 parser.add_argument("--cloud_proc_mod", default="rapprentice.cloud_proc_funcs")
     
 parser.add_argument("--execution", type=int, default=0)
