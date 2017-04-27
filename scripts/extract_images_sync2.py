@@ -45,7 +45,7 @@ import cv_bridge
 import message_filters
 import rospy
 from sensor_msgs.msg import Image
-
+import numpy as np
 
 class ExtractImagesSync(object):
 
@@ -61,7 +61,8 @@ class ExtractImagesSync(object):
             '~filename_format', '%s%i%s')
         self.do_dynamic_scaling = rospy.get_param(
             '~do_dynamic_scaling', False)
-        img_topics = rospy.get_param('~inputs', None)
+        # img_topics = rospy.get_param('~inputs', None)
+        img_topics = ['/kinect2/hd/image_color_rect','/kinect2/hd/image_depth_rect']
         if img_topics is None:
             rospy.logwarn("""\
 extract_images_sync: rosparam '~inputs' has not been specified! \
@@ -94,8 +95,6 @@ _inputs:='[<image_topic>, <image_topic>]'""")
             # encoding_in = bridge.dtype_with_channels_to_cvtype2(
             #     img.dtype, channels)
             encoding_in = imgmsg.encoding
-            # import IPython
-            # IPython.embed()
             img = cv_bridge.cvtColorForDisplay(
                 img, encoding_in=encoding_in, encoding_out='',
                 do_dynamic_scaling=self.do_dynamic_scaling)
@@ -105,8 +104,16 @@ _inputs:='[<image_topic>, <image_topic>]'""")
             if(i== 1):
                 fname = self.fname_fmt % ('depth', seq, '.png')
             print('Save image as {0}'.format(fname))
-            img = cv2.resize(img, (640,480))
+            # img = cv2.resize(img, (640,480))
+            import IPython
+            IPython.embed()
             cv2.imwrite(self.outdir + "/" + fname, img)
+
+            if(i== 1):
+                fname = self.fname_fmt % ('depth', seq, '.npy')
+                depth = np.fromstring(imgmsg.data, dtype=np.uint16).reshape(imgmsg.height, imgmsg.width)
+                np.save(fname, depth)
+                
         timestamp = imgmsgs[0].header.stamp.to_sec()
         self.timestamps.append(timestamp)
         self.f.write(str(timestamp)+'\n')

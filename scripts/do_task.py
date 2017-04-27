@@ -5,6 +5,8 @@ usage="""
 
 Run in simulation with a translation and a rotation of fake data:
 Rona: for us, --fake_data_seg=demo_files0_seg00
+Sneha(4/7): ./scripts/do_task.py master.h5 --fake_data_segment=demo_files0_seg00 --execution=0 --animation=1  --fake_data_transform .1 .1 .1 .1 .1 .1
+
 ./do_task.py ~/Data/sampledata/overhand/overhand.h5 --fake_data_segment=overhand0_seg00 --execution=0  --animation=1 --select_manual --fake_data_transform .1 .1 .1 .1 .1 .1
 
 Run in simulation choosing the closest demo, single threaded
@@ -12,6 +14,7 @@ Run in simulation choosing the closest demo, single threaded
 
 Actually run on the robot without pausing or animating 
 ./do_task.py ~/Data/overhand2/all.h5 --execution=1 --animation=0
+Sneha (4/19): ./scripts/do_task.py master.h5 --execution=1 --animation=1 --parallel=0
 
 """
 parser = argparse.ArgumentParser(usage=usage)
@@ -23,9 +26,9 @@ parser.add_argument("--execution", type=int, default=0)
 parser.add_argument("--animation", type=int, default=0)
 parser.add_argument("--parallel", type=int, default=1)
 
-parser.add_argument("--prompt", action="store_true")
-parser.add_argument("--show_neighbors", action="store_true")
-parser.add_argument("--select_manual", action="store_true")
+parser.add_argument("--prompt", default=1)#action="store_true")
+parser.add_argument("--show_neighbors", default=1)#action="store_true")
+parser.add_argument("--select_manual", default=1) #action="store_true")
 parser.add_argument("--log", action="store_true")
 
 parser.add_argument("--fake_data_segment",type=str)
@@ -59,12 +62,18 @@ If you're using fake data, don't update it.
 
 """
 
-
+import subprocess
+import sys
+# import cv_bridge
+# import cv2
+import message_filters
+from sensor_msgs.msg import Image
 from rapprentice import registration, colorize, berkeley_pr2, \
      animate_traj, ros2rave, plotting_openrave, task_execution, \
      planning, tps, func_utils, resampling, clouds
 from rapprentice import math_utils as mu
 from rapprentice.yes_or_no import yes_or_no
+import skimage.morphology as skim
 
 try:
     from rapprentice import pr2_trajectories, PR2
@@ -76,14 +85,187 @@ import cloudprocpy, trajoptpy, openravepy
 import os, numpy as np, h5py, time
 from numpy import asarray
 import importlib
+import matplotlib
 
-cloud_proc_mod = importlib.import_module(args.cloud_proc_mod)
-cloud_proc_func = getattr(cloud_proc_mod, args.cloud_proc_func)
+subs = []
+rgb = None
+depth = None
+do_dynamic_scaling = None
+
+# cloud_proc_mod = importlib.import_module(args.cloud_proc_mod)
+# cloud_proc_func = getattr(cloud_proc_mod, args.cloud_proc_func) 
+
+
+#BEGINNING OF PASTE FROM CLOUD_PROC_FUNCs
+DEBUG_PLOTS=True
+rect = None
+selecting = False
+rect_mask = None
+def on_mouse(event, x, y, flags, params):
+    '''
+        Mouse callback that sets the rectangle
+        Click and drag to create the rectangle
+    '''
+    global rect, selecting
+    if event == cv2.EVENT_LBUTTONDOWN and not selecting:
+        rect = [(x, y)]
+        selecting = True
+        print 'First point selected: ', rect
+    elif event == cv2.EVENT_LBUTTONUP and selecting:
+        rect.append((x, y))
+        selecting = False
+        print 'Second point selected: ', rect
+
+
+def get_rectangle(img):
+    '''
+        Get the rectangle selection from user and set it
+        as a global var
+    '''
+    wname = "CropImage"
+    cv2.namedWindow(wname)
+    cv2.setMouseCallback(wname, on_mouse) 
+    cv2.imshow(wname, img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+
+def build_rectangle(img):
+    global rect_mask
+    rect_mask = np.zeros((img.shape[0], img.shape[1]), dtype=bool)
+    rect_mask[rect[0][1]:rect[1][1],rect[0][0]:rect[1][0]] = True
+
+def extract_yellow(bgr, depth, T_w_k, rect_file="rect.txt"):
+    """
+    extract yellow points and downsample
+    """
+    global rect
+    if not os.path.isfile(rect_file):
+        get_rectangle(bgr)
+        with open(rect_file, 'w') as f:
+            f.write(str(rect[0]) + "\n")
+            f.write(str(rect[1]) + "\n")
+    else:
+        with open(rect_file, 'r') as f:
+            rect = []
+            for line in f:
+                x,y = line.replace("(", '').replace(')', '').replace('\n', '').split(",")
+                rect.append((int(x),int(y)))
+    build_rectangle(bgr)
+    rgb = bgr[...,::-1]
+    scaled_rgb = np.divide(rgb, 255.0)
+    hsv = matplotlib.colors.rgb_to_hsv(scaled_rgb)
+    #hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
+    #hsv = np.multiply(hsv,255.0)
+    h = hsv[:,:,0]
+    s = hsv[:,:,1]
+    v = hsv[:,:,2]
+    #blue 157-255 out of 360
+    blue_lower = 0.0 / 360.0
+    blue_upper = 65.0 / 360.0
+    h_mask = ((h < blue_upper) & (h > blue_lower))
+
+    #h_mask = (h < 56) | (h > 32) 
+    s_mask = (s > (10/100.0))
+    v_mask = (v >  (40/100.0))
+    red_mask = h_mask & s_mask & v_mask
+    
+    valid_mask = depth > 0.7
+
+    xyz_k = clouds.depth_to_xyz(depth, berkeley_pr2.f)
+    xyz_w = xyz_k.dot(T_w_k[:3,:3].T) + T_w_k[:3,3][None,None,:]
+    
+    z = xyz_w[:,:,2]   
+    z0 = xyz_k[:,:,2]
+
+    height_mask = xyz_w[:,:,2] > .7 # TODO pass in parameter
+    good_mask = red_mask & height_mask & valid_mask 
+    good_mask = good_mask & rect_mask
+    good_mask =   skim.remove_small_objects(good_mask,min_size=64)
+
+    if DEBUG_PLOTS and args.execution:
+        import cv2
+        cv2.imshow("z0",z0/z0.max())
+        cv2.imshow("z",z/z.max())
+        cv2.imshow("hue", h_mask.astype('uint8')*255)
+        cv2.imshow("sat", s_mask.astype('uint8')*255)
+        cv2.imshow("val", v_mask.astype('uint8')*255)
+        cv2.imshow("final",good_mask.astype('uint8')*255)
+        cv2.imshow("rect", rect_mask.astype('uint8')*255)
+        cv2.imshow("rgb", bgr)
+        cv2.waitKey()
+            
         
     
+
+    good_xyz = xyz_w[good_mask]
+    print good_xyz.shape
+    
+    # our_x = good_xyz[:,0]
+    # our_y = good_xyz[:,1]
+    # our_z = good_xyz[:,2] 
+    # good_xyz[:,0] = our_z
+    # good_xyz[:,1] = our_y
+    # good_xyz[:,2] = our_x
+    
+
+    return clouds.downsample(good_xyz, .00001)
+    # return good_xyz
+
+def extract_red(rgb, depth, T_w_k):
+    """
+    extract red points and downsample
+    """
+    import cv2    
+    hsv = cv2.cvtColor(rgb, cv2.COLOR_BGR2HSV)
+    h = hsv[:,:,0]
+    s = hsv[:,:,1]
+    v = hsv[:,:,2]
+    
+    h_mask = (h<15) | (h>145)
+    s_mask = (s > 30 )
+    v_mask = (v > 100)
+    red_mask = h_mask & s_mask & v_mask
+    
+    valid_mask = depth > 0
+    
+    xyz_k = clouds.depth_to_xyz(depth, berkeley_pr2.f)
+    xyz_w = xyz_k.dot(T_w_k[:3,:3].T) + T_w_k[:3,3][None,None,:]
+    
+    z = xyz_w[:,:,2]   
+    z0 = xyz_k[:,:,2]
+
+    height_mask = xyz_w[:,:,2] > .7 # TODO pass in parameter
+    
+    good_mask = red_mask & height_mask & valid_mask
+    good_mask =   skim.remove_small_objects(good_mask,min_size=64)
+
+    if DEBUG_PLOTS:
+        cv2.imshow("z0",z0/z0.max())
+        cv2.imshow("z",z/z.max())
+        cv2.imshow("hue", h_mask.astype('uint8')*255)
+        cv2.imshow("sat", s_mask.astype('uint8')*255)
+        cv2.imshow("val", v_mask.astype('uint8')*255)
+        cv2.imshow("final",good_mask.astype('uint8')*255)
+        cv2.imshow("rgb", rgb)
+        cv2.waitKey()
+            
+        
+    
+
+    good_xyz = xyz_w[good_mask]
+    
+
+    return clouds.downsample(good_xyz, .025)
+
+cloud_proc_func = extract_yellow    
+# cloud_proc_func = extract_red
+#END OF COPY OF CLOUD_PROC_FUNCS
 def redprint(msg):
     print colorize.colorize(msg, "red", bold=True)
-    
+
+        
+
 def split_trajectory_by_gripper(seg_info):
     rgrip = asarray(seg_info["r_gripper_joint"])
     lgrip = asarray(seg_info["l_gripper_joint"])
@@ -119,6 +301,7 @@ def binarize_gripper(angle):
     
 def set_gripper_maybesim(lr, value):
     if args.execution:
+        print('249')
         gripper = {"l":Globals.pr2.lgrip, "r":Globals.pr2.rgrip}[lr]
         gripper.set_angle(value)
         Globals.pr2.join_all()
@@ -139,7 +322,10 @@ def exec_traj_maybesim(bodypart2traj):
         animate_traj.animate_traj(full_traj, Globals.robot, restore=False,pause=True)
     if args.execution:
         if not args.prompt or yes_or_no("execute?"):
-            pr2_trajectories.follow_body_traj(Globals.pr2, bodypart2traj)
+            print('270')
+            import IPython
+            IPython.embed()
+            # pr2_trajectories.follow_body_traj(Globals.pr2, bodypart2traj, speed_factor=0.25)
         else:
             return False
 
@@ -157,7 +343,9 @@ def find_closest_manual(demofile, _new_xyz):
     return chosen_seg
 
 def registration_cost(xyz0, xyz1):
+    print xyz0
     scaled_xyz0, _ = registration.unit_boxify(xyz0)
+    print xyz1
     scaled_xyz1, _ = registration.unit_boxify(xyz1)
     f,g = registration.tps_rpm_bij(scaled_xyz0, scaled_xyz1, rot_reg=1e-3, n_iter=30)
     cost = registration.tps_reg_cost(f) + registration.tps_reg_cost(g)
@@ -204,15 +392,16 @@ def arm_moved(joint_traj):
 def tpsrpm_plot_cb(x_nd, y_md, targ_Nd, corr_nm, wt_n, f):
     ypred_nd = f.transform_points(x_nd)
     handles = []
+    # new rope in green
     handles.append(Globals.env.plot3(ypred_nd, 3, (0,1,0)))
     handles.extend(plotting_openrave.draw_grid(Globals.env, f.transform_points, x_nd.min(axis=0), x_nd.max(axis=0), xres = .1, yres = .1, zres = .04))
     Globals.viewer.Step()
 
 
 def unif_resample(traj, max_diff, wt = None):        
-    """
-    Resample a trajectory so steps have same length in joint space    
-    """
+
+    #Resample a trajectory so steps have same length in joint space    
+
     import scipy.interpolate as si
     tol = .005
     if wt is not None: 
@@ -241,6 +430,34 @@ def unif_resample(traj, max_diff, wt = None):
 
     return traj_rs, newt
 
+def get_rgbd():
+    # set_params_cmd = "rosrun image_view extract_images_sync _inputs:='[/kinect2/hd/image_color, /kinect2/hd/image_depth_rect]'"
+    # set_params_handle = subprocess.Popen(set_params_cmd, shell=True)
+    # time.sleep(1)
+    global rgb, depth
+    if args.execution:
+        import cv2, cv_bridge
+        do_dynamic_scaling = rospy.get_param(
+            '~do_dynamic_scaling', False)
+        img_topics = ['/kinect2/hd/image_color','/kinect2/hd/image_depth_rect']
+
+        bridge = cv_bridge.CvBridge()
+
+        for i, t in enumerate(img_topics):
+            imgmsg = rospy.wait_for_message(t, Image)
+            img = bridge.imgmsg_to_cv2(imgmsg)
+            encoding_in = imgmsg.encoding
+            img = cv_bridge.cvtColorForDisplay(
+                img, encoding_in=encoding_in, encoding_out='',
+                do_dynamic_scaling=do_dynamic_scaling)
+            img = cv2.resize(img, (640,480))
+            if i== 0:
+                rgb = img
+            else:
+                depth = img[:,:,0]
+
+
+
 
 ###################
 
@@ -252,19 +469,21 @@ class Globals:
     pr2 = None
 
 def main():
-
+    global rgb, depth
     demofile = h5py.File(args.h5file, 'r')
     
     trajoptpy.SetInteractive(args.interactive)
 
 
     if args.log:
+        print "in logs"
         LOG_DIR = osp.join(osp.expanduser("~/Data/do_task_logs"), datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
         os.mkdir(LOG_DIR)
         LOG_COUNT = 0
                         
 
     if args.execution:
+        print "in execution"
         rospy.init_node("exec_task",disable_signals=True)
         Globals.pr2 = PR2.PR2()
         Globals.env = Globals.pr2.env
@@ -277,13 +496,14 @@ def main():
         Globals.robot = Globals.env.GetRobots()[0]
 
     if not args.fake_data_segment:
-        grabber = cloudprocpy.CloudGrabber()
-        grabber.startRGBD()
-
+        print "not fake data seg"
+        # grabber = cloudprocpy.CloudGrabber()
+        # grabber.startRGBD()
+    redprint("line 282")
     Globals.viewer = trajoptpy.GetViewer(Globals.env)
-
+    print "after viewer"
+    
     #####################
-
     while True:
         
     
@@ -297,7 +517,8 @@ def main():
             r2r = ros2rave.RosToRave(Globals.robot, asarray(fake_seg["joint_states"]["name"]))
             r2r.set_values(Globals.robot, asarray(fake_seg["joint_states"]["position"][0]))
         else:
-            Globals.pr2.head.set_pan_tilt(0,1.2)
+            #Globals.pr2.head.set_pan_tilt(0,1.2)
+            Globals.pr2.head.set_pan_tilt(0,1.32)
             Globals.pr2.rarm.goto_posture('side')
             Globals.pr2.larm.goto_posture('side')            
             Globals.pr2.join_all()
@@ -306,14 +527,15 @@ def main():
             
             Globals.pr2.update_rave()
             
-            rgb, depth = grabber.getRGBD()
+            #rgb, depth = grabber.getRGBD()
+            get_rgbd()
             T_w_k = berkeley_pr2.get_kinect_transform(Globals.robot)
             new_xyz = cloud_proc_func(rgb, depth, T_w_k)
     
             #grab_end(new_xyz)
 
     
-        if args.log:
+        if False: #args.log:
             LOG_COUNT += 1
             import cv2
             cv2.imwrite(osp.join(LOG_DIR,"rgb%i.png"%LOG_COUNT), rgb)
@@ -342,16 +564,19 @@ def main():
 
         handles = []
         old_xyz = np.squeeze(seg_info["cloud_xyz"])
+        #Plot old data in red
         handles.append(Globals.env.plot3(old_xyz,5, (1,0,0)))
+        # Plot new data in green
         handles.append(Globals.env.plot3(new_xyz,5, (0,0,1)))
 
-
         scaled_old_xyz, src_params = registration.unit_boxify(old_xyz)
-        scaled_new_xyz, targ_params = registration.unit_boxify(new_xyz)        
+        scaled_new_xyz, targ_params = registration.unit_boxify(new_xyz)
+
         f,_ = registration.tps_rpm_bij(scaled_old_xyz, scaled_new_xyz, plot_cb = tpsrpm_plot_cb,
                                        plotting=5 if args.animation else 0,rot_reg=np.r_[1e-4,1e-4,1e-1], n_iter=50, reg_init=10, reg_final=.1)
+
         f = registration.unscale_tps(f, src_params, targ_params)
-        
+
         handles.extend(plotting_openrave.draw_grid(Globals.env, f.transform_points, old_xyz.min(axis=0)-np.r_[0,0,.1], old_xyz.max(axis=0)+np.r_[0,0,.1], xres = .1, yres = .1, zres = .04))        
 
         link2eetraj = {}
@@ -361,7 +586,9 @@ def main():
             new_ee_traj = f.transform_hmats(old_ee_traj)
             link2eetraj[link_name] = new_ee_traj
             
+            # old trajectory in red
             handles.append(Globals.env.drawlinestrip(old_ee_traj[:,:3,3], 2, (1,0,0,1)))
+            # new trajextory in green
             handles.append(Globals.env.drawlinestrip(new_ee_traj[:,:3,3], 2, (0,1,0,1)))
     
         miniseg_starts, miniseg_ends = split_trajectory_by_gripper(seg_info)    
@@ -422,6 +649,7 @@ def main():
             if not success: break
         
             if len(bodypart2traj) > 0:
+                print('Length of bodypart2traj is greater than 0 [589]')
                 success &= exec_traj_maybesim(bodypart2traj)
 
             if not success: break
@@ -432,6 +660,7 @@ def main():
     
     
         if args.fake_data_segment: break
+        
 
 if __name__ == "__main__":
     main()

@@ -16,6 +16,14 @@ import os.path as osp
 import itertools
 import yaml
 
+try:
+    from rapprentice import PR2
+    import rospy
+except ImportError:
+    print "Couldn't import ros stuff"
+
+pr2 = None
+
 
 if "localhost" in os.getenv("ROS_MASTER_URI"):
     raise Exception("on localhost!")
@@ -62,6 +70,15 @@ try:
         raise Exception("problem starting video recording")
     else: started_bag = True
     
+    rospy.init_node("exec_task", disable_signals=True)
+    pr2 = PR2.PR2()
+
+    pr2.head.set_pan_tilt(0,1.4)
+    pr2.rarm.goto_posture('side')
+    pr2.larm.goto_posture('side')            
+    pr2.join_all()
+    time.sleep(.5)
+
     '''
     video_cmd = "record_rgbd_video --out=%s --downsample=%i"%(demo_name, args.downsample)
     print colorize(video_cmd, "green")
