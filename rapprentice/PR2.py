@@ -31,7 +31,8 @@ class TopicListener(object):
         self.sub = rospy.Subscriber(topic_name,msg_type,self.callback)        
 
         rospy.loginfo('waiting for the first message: %s'%topic_name)
-        while self.last_msg is None: rospy.sleep(.01)
+        while self.last_msg is None:
+            rospy.sleep(.01)
         rospy.loginfo('ok: %s'%topic_name)
 
     def callback(self,msg):
@@ -87,9 +88,7 @@ class PR2(object):
         self.env.StopSimulation()
         self.env.Load("robots/pr2-beta-static.zae") # todo: use up-to-date urdf
         self.robot = self.env.GetRobots()[0]
-
         self.joint_listener = TopicListener("/joint_states", sm.JointState)
-
         # rave to ros conversions
         joint_msg = self.get_last_joint_message()        
         ros_names = joint_msg.name                
@@ -105,7 +104,6 @@ class PR2(object):
         self.head = Head(self)
         self.torso = Torso(self)
         self.base = Base(self)
-
 
         rospy.on_shutdown(self.stop_all)
 

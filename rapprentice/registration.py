@@ -152,9 +152,12 @@ def loglinspace(a,b,n):
     
 
 
-def unit_boxify(x_na):    
+def unit_boxify(x_na):
+    print x_na.shape    
     ranges = x_na.ptp(axis=0)
+    print ranges
     dlarge = ranges.argmax()
+    print dlarge
     unscaled_translation = - (x_na.min(axis=0) + x_na.max(axis=0))/2
     scaling = 1./ranges[dlarge]
     scaled_translation = unscaled_translation * scaling

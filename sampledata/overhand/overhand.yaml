@@ -1,0 +1,7 @@
+name: overhand
+h5path: overhand.h5
+bags:
+- bag_file: demo0_2013-04-20-15-58-09.bag
+  annotation_file: demo0.ann.yaml
+  video_dir: demo0_2013-04-20-15-58-09
+  demo_name: overhand0
