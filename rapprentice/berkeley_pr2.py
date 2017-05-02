@@ -27,9 +27,9 @@ T_h_k = np.array([[-0.02102462, -0.03347223,  0.99921848, -0.186996  ],
  [ 0.0078845,  -0.99941387, -0.03331288,  0.22145804],
  [ 0.,          0.,          0.,          1.        ]])
 
-f = 1038.260779961
+#f = 1038.260779961
 
-#f = 544.26077
+f = 544.26077
 """import tf
 import rospy
 rospy.init_node('time', anonymous=True)
@@ -41,6 +41,11 @@ T_h_k = listener.fromTranslationRotation(translation, rotation)
 #        [ 0.      ,  1.      ,  0.      ,  0.      ],
 #        [ 0.      ,  0.      ,  1.      , -0.091746],
 #        [ 0.      ,  0.      ,  0.      ,  1.      ]])
+
+# T_h_k = np.array([[-0.02102462, -0.03347223,  0.99921848, -0.13 ],
+#  [-0.99974787, -0.00717795, -0.02127621,  0.],
+#  [ 0.0078845,  -0.99941387, -0.03331288,  0.11],
+#  [ 0.,          0.,          0.,          1.        ]])
 
 def get_kinect_transform(robot):    
     T_w_h = robot.GetLink("head_plate_frame").GetTransform() 

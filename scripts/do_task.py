@@ -14,7 +14,7 @@ Run in simulation choosing the closest demo, single threaded
 
 Actually run on the robot without pausing or animating 
 ./do_task.py ~/Data/overhand2/all.h5 --execution=1 --animation=0
-Sneha (4/19): ./scripts/do_task.py master.h5 --execution=1 --animation=1 --parallel=0
+Sneha (4/19): ./scripts/do_task.py master.h5 --execution=1 --animation=1 --parallel=1
 
 """
 parser = argparse.ArgumentParser(usage=usage)
@@ -28,7 +28,7 @@ parser.add_argument("--parallel", type=int, default=1)
 
 parser.add_argument("--prompt", default=1)#action="store_true")
 parser.add_argument("--show_neighbors", default=1)#action="store_true")
-parser.add_argument("--select_manual", default=1) #action="store_true")
+parser.add_argument("--select_manual", default=0) #action="store_true")
 parser.add_argument("--log", action="store_true")
 
 parser.add_argument("--fake_data_segment",type=str)
@@ -193,6 +193,7 @@ def extract_yellow(bgr, depth, T_w_k, rect_file="rect.txt"):
         cv2.imshow("final",good_mask.astype('uint8')*255)
         cv2.imshow("rect", rect_mask.astype('uint8')*255)
         cv2.imshow("rgb", bgr)
+        print "Press any key on cv2 images to continue"
         cv2.waitKey()
             
         
@@ -209,7 +210,7 @@ def extract_yellow(bgr, depth, T_w_k, rect_file="rect.txt"):
     # good_xyz[:,2] = our_x
     
 
-    return clouds.downsample(good_xyz, .00001)
+    return clouds.downsample(good_xyz, .025)
     # return good_xyz
 
 def extract_red(rgb, depth, T_w_k):
@@ -322,10 +323,10 @@ def exec_traj_maybesim(bodypart2traj):
         animate_traj.animate_traj(full_traj, Globals.robot, restore=False,pause=True)
     if args.execution:
         if not args.prompt or yes_or_no("execute?"):
-            print('270')
-            import IPython
-            IPython.embed()
-            # pr2_trajectories.follow_body_traj(Globals.pr2, bodypart2traj, speed_factor=0.25)
+            #print('270')
+            #import IPython
+            #IPython.embed()
+            pr2_trajectories.follow_body_traj(Globals.pr2, bodypart2traj, speed_factor=0.25)
         else:
             return False
 
@@ -395,7 +396,7 @@ def tpsrpm_plot_cb(x_nd, y_md, targ_Nd, corr_nm, wt_n, f):
     # new rope in green
     handles.append(Globals.env.plot3(ypred_nd, 3, (0,1,0)))
     handles.extend(plotting_openrave.draw_grid(Globals.env, f.transform_points, x_nd.min(axis=0), x_nd.max(axis=0), xres = .1, yres = .1, zres = .04))
-    Globals.viewer.Step()
+    #Globals.viewer.Step()
 
 
 def unif_resample(traj, max_diff, wt = None):        
@@ -450,11 +451,11 @@ def get_rgbd():
             img = cv_bridge.cvtColorForDisplay(
                 img, encoding_in=encoding_in, encoding_out='',
                 do_dynamic_scaling=do_dynamic_scaling)
-            img = cv2.resize(img, (640,480))
             if i== 0:
-                rgb = img
+                rgb = cv2.resize(img, (640,480))
             else:
-                depth = img[:,:,0]
+                depth_large = np.fromstring(imgmsg.data, dtype=np.uint16).reshape(imgmsg.height, imgmsg.width)
+                depth = cv2.resize(depth_large, (640,480))
 
 
 
@@ -574,9 +575,8 @@ def main():
 
         f,_ = registration.tps_rpm_bij(scaled_old_xyz, scaled_new_xyz, plot_cb = tpsrpm_plot_cb,
                                        plotting=5 if args.animation else 0,rot_reg=np.r_[1e-4,1e-4,1e-1], n_iter=50, reg_init=10, reg_final=.1)
-
         f = registration.unscale_tps(f, src_params, targ_params)
-
+        
         handles.extend(plotting_openrave.draw_grid(Globals.env, f.transform_points, old_xyz.min(axis=0)-np.r_[0,0,.1], old_xyz.max(axis=0)+np.r_[0,0,.1], xres = .1, yres = .1, zres = .04))        
 
         link2eetraj = {}
@@ -659,7 +659,7 @@ def main():
         redprint("Segment %s result: %s"%(seg_name, success))
     
     
-        if args.fake_data_segment: break
+        #if args.fake_data_segment: break
         
 
 if __name__ == "__main__":

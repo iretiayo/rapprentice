@@ -1,0 +1,8 @@
+- {description: (no description), look: 1492742518.2755249, name: seg00, start: 1492742519.1305358,
+  stop: 1492742534.9705765}
+- {description: (no description), look: 1492742536.0393505, name: seg01, start: 1492742537.043086,
+  stop: 1492742548.4031093}
+- {description: (no description), look: 1492742549.4943924, name: seg02, start: 1492742550.3044102,
+  stop: 1492742561.0594337}
+- {description: (no description), done: null, look: 1492742562.0044086, name: done,
+  start: 1492742562.0044086, stop: 1492742563.0044086}

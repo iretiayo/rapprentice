@@ -100,20 +100,16 @@ _inputs:='[<image_topic>, <image_topic>]'""")
                 do_dynamic_scaling=self.do_dynamic_scaling)
 
             #assume image is color (i = 0), set fname as rgb#.jpg
-            fname = self.fname_fmt % ('rgb', seq, '.jpg')
-            if(i== 1):
-                fname = self.fname_fmt % ('depth', seq, '.png')
-            print('Save image as {0}'.format(fname))
-            # img = cv2.resize(img, (640,480))
-            import IPython
-            IPython.embed()
-            cv2.imwrite(self.outdir + "/" + fname, img)
-
-            if(i== 1):
+            if i == 0:
+                fname = self.fname_fmt % ('rgb', seq, '.jpg')
+                img = cv2.resize(img, (640,480))
+                cv2.imwrite(self.outdir + "/" + fname, img)
+            elif i== 1:
                 fname = self.fname_fmt % ('depth', seq, '.npy')
                 depth = np.fromstring(imgmsg.data, dtype=np.uint16).reshape(imgmsg.height, imgmsg.width)
-                np.save(fname, depth)
-                
+                depth1 = cv2.resize(depth, (640,480))
+                np.save(self.outdir + "/" + fname, depth1)
+            print('Save image as {0}'.format(fname))
         timestamp = imgmsgs[0].header.stamp.to_sec()
         self.timestamps.append(timestamp)
         self.f.write(str(timestamp)+'\n')

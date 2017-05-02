@@ -8,7 +8,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("task_file")
 parser.add_argument("--no_prompt", action="store_true")
-parser.add_argument("--cloud_proc_func", default="extract_red")
+parser.add_argument("--cloud_proc_func", default="extract_yellow")
 parser.add_argument("--cloud_proc_mod", default="rapprentice.cloud_proc_funcs")
 parser.add_argument("--no_clouds")
 parser.add_argument("--clouds_only", action="store_true")

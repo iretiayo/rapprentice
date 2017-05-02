@@ -116,16 +116,13 @@ def extract_yellow(bgr, depth, T_w_k, rect_file="rect.txt"):
     # good_xyz[:,1] = our_y
     # good_xyz[:,2] = our_x
 
-    return clouds.downsample(good_xyz, .00001)
+    return clouds.downsample(good_xyz, .025)
     #return good_xyz
 
 def extract_red(rgb, depth, T_w_k):
     """
     extract red points and downsample
     """
-
-    import IPython
-    IPython.embed()
         
     hsv = cv2.cvtColor(rgb, cv2.COLOR_BGR2HSV)
     h = hsv[:,:,0]

@@ -154,15 +154,17 @@ def add_bag_to_hdf(bag, annotations, hdfroot, demo_name):
 
 def get_video_frames(video_dir, frame_stamps):
     video_stamps = np.loadtxt(osp.join(video_dir,"stamps.txt"))
+    print video_stamps
     frame_inds = np.searchsorted(video_stamps, frame_stamps)
-    
+    print frame_inds
     rgbs = []
     depths = []
     for frame_ind in frame_inds:
+        print frame_ind
         rgb = cv2.imread(osp.join(video_dir,"rgb%i.jpg"%frame_ind))
         assert rgb is not None
         rgbs.append(rgb)
-        depth = cv2.imread(osp.join(video_dir,"depth%i.png"%frame_ind),2)
+        depth = np.load(osp.join(video_dir,"depth%i.npy"%frame_ind))
         assert depth is not None
         depths.append(depth)
     return rgbs, depths
@@ -171,7 +173,7 @@ def get_video_frames(video_dir, frame_stamps):
 def add_rgbd_to_hdf(video_dir, annotations, hdfroot, demo_name):
     
     frame_stamps = [seg_info["look"] for seg_info in annotations]
-    
+    print frame_stamps
     rgb_imgs, depth_imgs = get_video_frames(video_dir, frame_stamps)
     
     for (i_seg, seg_info) in enumerate(annotations):        

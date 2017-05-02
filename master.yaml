@@ -7,3 +7,11 @@ bags:
   annotation_file: demo_files0.ann.yaml
   video_dir: demo_files0
   demo_name: demo_files0
+- bag_file: demo_files2.bag
+  annotation_file: demo_files2.ann.yaml
+  video_dir: demo_files2
+  demo_name: demo_files2
+- bag_file: demo_files1.bag
+  annotation_file: demo_files1.ann.yaml
+  video_dir: demo_files1
+  demo_name: demo_files1
